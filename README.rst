@@ -9,7 +9,7 @@ Installation
 	> python -m venv pyenv
 	
 	# Windows.
-	> pyenv/bin/activate.bat
+	> pyenv/Scripts/activate.bat
 	# Posix.
 	> source pyenv/bin/activate
 

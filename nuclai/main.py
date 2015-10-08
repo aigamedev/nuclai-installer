@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import json
 import time
 import subprocess
@@ -31,7 +32,8 @@ class Application(object):
         
     def execute(self):
         for cmdline, params in self.calls:
-            ret = subprocess.call(cmdline, stdout=self.log, stderr=self.log, **params)
+            # , stdout=self.log, stderr=self.log
+            ret = subprocess.call(cmdline, **params)
             if ret != 0:
                 raise RuntimeError('Command returned status %i.' % ret)
         self.calls = []
@@ -90,7 +92,8 @@ class Application(object):
                 print(' ● {} {: <40} …'.format(step, brief), end='', flush=True)
                 self.execute()
             except RuntimeError:
-                brief, status, status = '', '', ansi.RED + '✗' +    ansi.ENDC
+                print('RuntimeError')
+                status = ansi.RED + '✗' + ansi.ENDC
             except:
                 import traceback
                 traceback.print_exc()
@@ -125,5 +128,10 @@ class Application(object):
 
 
 def main(args):
+    # Must be a UTF-8 compatible codepage in the terminal or output doesn't work.
+    if 'win32' in sys.platform:
+        with open(os.devnull, 'w') as null:
+            subprocess.call(['chcp', '65001'], stdout=null, stderr=null, shell=True)
+
     app = Application()
     return app.main(args)
