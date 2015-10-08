@@ -15,7 +15,7 @@ class ansi:
     ENDC = '\033[0m'
 
 def style(text):
-    return ansi.BOLD+text+ansi.ENDC
+    return ansi.BOLD+('{: <8}'.format(text))+ansi.ENDC
 
 def display(text, color=ansi.WHITE):
     bold = color.replace('[0;', '[1;')
@@ -27,53 +27,61 @@ class Application(object):
 
     def call(self, *cmdline, **params):
         ret = subprocess.call(cmdline, stdout=self.log, stderr=self.log, **params)
-        if ret != 0: print('Error %i' % ret)
+        if ret != 0:
+            raise RuntimeError('Command returned status %i.' % ret)
     
+    def recipe_github(self, repo, rev):
+        folder = re.split('[/.]', repo)[1]
+        if not os.path.exists(folder):
+            self.call('git', 'clone', 'https://github.com/'+repo)
+        else:
+            self.call('git', 'pull', cwd=folder)
+        self.call('git', 'reset', '--hard', rev, cwd=folder)
+        if os.path.exists(os.path.join(folder, 'setup.py')):
+            self.call('python3', 'setup.py', 'develop', cwd=folder)            
+        return repo, ''
+
+    def recipe_shell(self, title, *args):
+        self.call(*args, shell=True)
+        return title, ''
+
+    def recipe_pypi(self, *packages):
+        self.call('pip', 'install', '--upgrade', *packages)
+        return ' '.join(packages),  ''
+
+    def recipe_exec(self, *args):
+        args, brief = list(args), os.path.split(args[0])[1]
+        if args[0].endswith('.py'):
+            args.insert(0, 'python3')
+        self.call(*args)
+        return brief,  ''
+
+    def recipe_fetch(self, url, file):
+        if not os.path.exists(file):
+            urllib.request.urlretrieve(url, file)
+        return file, ''
+
+    def recipe_open(self, target):
+        self.call('open', target)
+        return target, ''
+
     def cmd_install(self, name, pkg):
-        display('Installing nucl.ai package `%s`.' % (name), ansi.BLUE)
-    
-        for cmd, *args in pkg['install']['osx']:
-            if cmd == 'github':
-                repo, rev = args
-                folder = re.split('[/.]', repo)[1]
-                print('  *', style(cmd), folder)
-                        
-                self.call('git', 'clone', 'https://github.com/'+repo)
-                self.call('git', 'reset', '--hard', rev, cwd=folder)
-                if os.path.exists(os.path.join(folder, 'setup.py')):
-                    self.call('python3', 'setup.py', 'develop', cwd=folder)
-    
-            if cmd == 'shell':
-                print('  *', style(cmd), args[0])
-                self.call(*args[1:], shell=True)
-    
-            if cmd == 'pypi':
-                print('  *', style(cmd), *args)
-                self.call('pip', 'install', '--upgrade', *args)
-    
-            if cmd == 'exec':
-                if args[0].endswith('.py'):
-                    args.insert(0, 'python3')
-                self.call(*args)
-    
-            if cmd == 'fetch':
-                if not os.path.exists(args[1]):
-                    print('  *', style(cmd), args[1])
-                    urllib.request.urlretrieve(*args)
+        display('Installing nucl.ai package `{}`.'.format(name), ansi.BLUE)
+        self.do_recipes(pkg['install']['osx'])
 
     def cmd_demo(self, name, pkg):
-        display('Demonstrating nucl.ai package `%s`.' % (name), ansi.BLUE)
+        display('Demonstrating nucl.ai package `{}`.'.format(name), ansi.BLUE)
+        self.do_recipes(pkg['demo'])
         
-        for cmd, *args in pkg['demo']:
-            print('  *', style(cmd), *args)
-    
-            if cmd == 'open':
-                call('open', *args)
-    
-            if cmd == 'exec':
-                if args[0].endswith('.py'):
-                    args.insert(0, 'python3')
-                call(*args)
+    def do_recipes(self, recipes):
+        for cmd, *args in recipes:
+            recipe = getattr(self, 'recipe_'+cmd)
+            try:
+                status = '✓'
+                brief, detail = recipe(*args)
+            except:
+                status = '✗'
+            print(' ● {} {: <40} {}'.format(style(cmd), brief, status))
     
     def main(self, args):
         commands = {
@@ -91,6 +99,7 @@ class Application(object):
         
         self.log = open(cmd+'.log', 'w')
         commands[cmd](package, pkg)
+        print('')
         return 0
 
 
