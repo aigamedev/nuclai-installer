@@ -21,6 +21,16 @@ def display(text, color=ansi.WHITE):
     bold = color.replace('[0;', '[1;')
     text = re.sub(r'`(.*?)`', r'`{}\1{}`'.format(bold, color), text)
     print(color + text + ansi.ENDC)
+    
+
+def symlink(src, dst):
+    if 'win32' in sys.platform:
+        import ctypes
+        kernel32 = ctypes.windll.LoadLibrary("kernel32.dll")
+        kernel32.CreateSymbolicLinkW(dst.replace(' ', r'\ '), src, 1)
+        print('DONE')
+    else:
+        os.symlink(src, dst)
 
 
 class Application(object):
@@ -46,7 +56,7 @@ class Application(object):
             self.call('git', 'pull', cwd=folder)
         self.call('git', 'reset', '--hard', rev, cwd=folder)
         if os.path.exists(os.path.join(folder, 'setup.py')):
-            self.call('python3', 'setup.py', 'develop', cwd=folder)            
+            self.call('python', 'setup.py', 'develop', cwd=folder)            
         return folder, ''
 
     def recipe_shell(self, title, *args):
@@ -54,15 +64,33 @@ class Application(object):
         return title, ''
 
     def recipe_pypi(self, *packages):
-        # TODO: If package is already installed system-wide, use that by default.
-        # Create new .egg-link and modify the easy-install.pth.
-        self.call('pip', 'install', '--upgrade', *packages)
+        remaining = []
+        for p in packages:
+            if p == 'cython': p = 'Cython'
+            base_folder = os.path.join(sys.base_prefix, 'Lib', 'site-packages', p)
+            if os.path.isdir(base_folder):
+                link = os.path.join(sys.prefix, 'Lib', 'site-packages', p+'.egg-link')
+                with open(link, 'w') as egg:
+                    egg.write(base_folder)
+                    
+                pth = os.path.join(sys.prefix, 'Lib', 'site-packages', 'easy-install.pth')
+                with open(pth, 'r') as cfg:
+                    lines = cfg.readlines()
+                if base_folder+'\n' not in lines:
+                    lines.insert(1, base_folder+'\n')
+                    with open(pth, 'w') as cfg:
+                        cfg.writelines(lines)
+            else:
+                remaining.append(p)
+        
+        if remaining:
+            self.call('pip', 'install', '--upgrade', *remaining)
         return ' '.join(packages),  ''
 
     def recipe_exec(self, *args):
         args, brief = list(args), os.path.split(args[0])[1]
         if args[0].endswith('.py'):
-            args.insert(0, 'python3')
+            args.insert(0, 'python')
         self.call(*args)
         return brief,  ''
 
@@ -86,7 +114,7 @@ class Application(object):
     def do_recipes(self, recipes):
         for cmd, *args in recipes:
             recipe = getattr(self, 'recipe_'+cmd)
-            step = ansi.BOLD+('{: <8}'.format(cmd))+ansi.ENDC
+            step = ansi.WHITE_B+('{: <8}'.format(cmd))+ansi.ENDC
 
             try:
                 status = '✓'
@@ -94,7 +122,6 @@ class Application(object):
                 print(' ● {} {: <40} …'.format(step, brief), end='', flush=True)
                 self.execute()
             except RuntimeError:
-                print('RuntimeError')
                 status = ansi.RED + '✗' + ansi.ENDC
             except:
                 import traceback
@@ -137,7 +164,7 @@ def main(args):
             subprocess.call(['chcp', '65001'], stdout=null, stderr=null, shell=True)
 
     # Fail if the user is running from a system-wide Python 3.4 installation.
-    if not hasattr(sys, 'real_prefix'):
+    if not hasattr(sys, 'base_prefix'):
         display('ERROR: Please run this script from a virtual environment.\n', color=ansi.RED_B)
         executable = os.path.split(sys.executable)[1]
         display('  > {} -m venv pyenv\n'.format(executable), color=ansi.RED)
