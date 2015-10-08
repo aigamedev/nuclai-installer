@@ -8,10 +8,11 @@ import urllib.request
 
 
 class ansi:
-    BOLD = '\033[1;97m'
     WHITE = '\033[0;97m'
+    WHITE_B = '\033[1;97m'
     YELLOW = '\033[0;33m'
     RED = '\033[0;31m'
+    RED_B = '\033[1;31m'
     GREEN = '\033[0;32m'
     BLUE = '\033[0;94m'
     ENDC = '\033[0m'
@@ -32,8 +33,7 @@ class Application(object):
         
     def execute(self):
         for cmdline, params in self.calls:
-            # , stdout=self.log, stderr=self.log
-            ret = subprocess.call(cmdline, **params)
+            ret = subprocess.call(cmdline, stdout=self.log, stderr=self.log, **params)
             if ret != 0:
                 raise RuntimeError('Command returned status %i.' % ret)
         self.calls = []
@@ -54,6 +54,8 @@ class Application(object):
         return title, ''
 
     def recipe_pypi(self, *packages):
+        # TODO: If package is already installed system-wide, use that by default.
+        # Create new .egg-link and modify the easy-install.pth.
         self.call('pip', 'install', '--upgrade', *packages)
         return ' '.join(packages),  ''
 
@@ -109,6 +111,7 @@ class Application(object):
         return bool(modified < yesterday)
     
     def main(self, args):
+        # TODO: Error handling when no arguments are specified, argparse.
         cmd, package = args[1], args[2]
         command = getattr(self, 'cmd_'+cmd)
 
@@ -132,6 +135,13 @@ def main(args):
     if 'win32' in sys.platform:
         with open(os.devnull, 'w') as null:
             subprocess.call(['chcp', '65001'], stdout=null, stderr=null, shell=True)
+
+    # Fail if the user is running from a system-wide Python 3.4 installation.
+    if not hasattr(sys, 'real_prefix'):
+        display('ERROR: Please run this script from a virtual environment.\n', color=ansi.RED_B)
+        executable = os.path.split(sys.executable)[1]
+        display('  > {} -m venv pyenv\n'.format(executable), color=ansi.RED)
+        return 1
 
     app = Application()
     return app.main(args)
