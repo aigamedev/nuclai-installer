@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import time
 import subprocess
 import urllib.request
 
@@ -14,21 +15,26 @@ class ansi:
     BLUE = '\033[0;94m'
     ENDC = '\033[0m'
 
-def style(text):
-    return ansi.BOLD+('{: <8}'.format(text))+ansi.ENDC
-
 def display(text, color=ansi.WHITE):
     bold = color.replace('[0;', '[1;')
     text = re.sub(r'`(.*?)`', r'`{}\1{}`'.format(bold, color), text)
-    print("%s%s%s" % (color, text, ansi.ENDC))
+    print(color + text + ansi.ENDC)
 
 
 class Application(object):
 
+    def __init__(self):
+        self.calls = []
+
     def call(self, *cmdline, **params):
-        ret = subprocess.call(cmdline, stdout=self.log, stderr=self.log, **params)
-        if ret != 0:
-            raise RuntimeError('Command returned status %i.' % ret)
+        self.calls.append((cmdline, params))
+        
+    def execute(self):
+        for cmdline, params in self.calls:
+            ret = subprocess.call(cmdline, stdout=self.log, stderr=self.log, **params)
+            if ret != 0:
+                raise RuntimeError('Command returned status %i.' % ret)
+        self.calls = []
     
     def recipe_github(self, repo, rev):
         folder = re.split('[/.]', repo)[1]
@@ -39,7 +45,7 @@ class Application(object):
         self.call('git', 'reset', '--hard', rev, cwd=folder)
         if os.path.exists(os.path.join(folder, 'setup.py')):
             self.call('python3', 'setup.py', 'develop', cwd=folder)            
-        return repo, ''
+        return folder, ''
 
     def recipe_shell(self, title, *args):
         self.call(*args, shell=True)
@@ -76,29 +82,44 @@ class Application(object):
     def do_recipes(self, recipes):
         for cmd, *args in recipes:
             recipe = getattr(self, 'recipe_'+cmd)
+            step = ansi.BOLD+('{: <8}'.format(cmd))+ansi.ENDC
+
             try:
                 status = '✓'
                 brief, detail = recipe(*args)
+                print(' ● {} {: <40} …'.format(step, brief), end='', flush=True)
+                self.execute()
+            except RuntimeError:
+                brief, status, status = '', '', ansi.RED + '✗' +    ansi.ENDC
             except:
-                status = '✗'
-            print(' ● {} {: <40} {}'.format(style(cmd), brief, status))
+                import traceback
+                traceback.print_exc()
+            
+            print('\r ● {} {: <40} {}'.format(step, brief, status))
+    
+    def is_stale(self, filename):
+        if not os.path.exists(filename):
+            return True
+
+        modified = os.path.getmtime(filename)
+        yesterday = time.time() - 24 * 3600
+        return bool(modified < yesterday)
     
     def main(self, args):
-        commands = {
-            'install': self.cmd_install,
-            'demo': self.cmd_demo
-        }
         cmd, package = args[1], args[2]
-        assert cmd in commands
-    
-        pkg = json.load(open(package+'.json'))
-        
+        command = getattr(self, 'cmd_'+cmd)
+
         if not os.path.isdir(package):
             os.mkdir(package)
         os.chdir(package)
+
+        filename = package+'.json'
+        if self.is_stale(filename):
+            urllib.request.urlretrieve('http://courses.nucl.ai/packages/'+filename, filename)
+        pkg = json.load(open(filename))
         
         self.log = open(cmd+'.log', 'w')
-        commands[cmd](package, pkg)
+        command(package, pkg)
         print('')
         return 0
 
