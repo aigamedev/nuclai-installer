@@ -3,6 +3,7 @@ import re
 import sys
 import json
 import time
+import shutil
 import subprocess
 import urllib.request
 
@@ -27,8 +28,12 @@ def symlink(src, dst):
     if 'win32' in sys.platform:
         import ctypes
         kernel32 = ctypes.windll.LoadLibrary("kernel32.dll")
-        kernel32.CreateSymbolicLinkW(dst.replace(' ', r'\ '), src, 1)
-        print('DONE')
+        kernel32.CreateSymbolicLinkW(dst, src, 1)
+        if not os.path.exists(dst):
+            if os.path.isdir(src):
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy(src, dst)
     else:
         os.symlink(src, dst)
 
@@ -65,26 +70,19 @@ class Application(object):
 
     def recipe_pypi(self, *packages):
         remaining = []
+        packages = list(packages)
+        if 'cython' in packages: packages.append('cython.py')
         for p in packages:
             if p == 'cython': p = 'Cython'
             base_folder = os.path.join(sys.base_prefix, 'Lib', 'site-packages', p)
-            if os.path.isdir(base_folder):
-                link = os.path.join(sys.prefix, 'Lib', 'site-packages', p+'.egg-link')
-                with open(link, 'w') as egg:
-                    egg.write(base_folder)
-                    
-                pth = os.path.join(sys.prefix, 'Lib', 'site-packages', 'easy-install.pth')
-                with open(pth, 'r') as cfg:
-                    lines = cfg.readlines()
-                if base_folder+'\n' not in lines:
-                    lines.insert(1, base_folder+'\n')
-                    with open(pth, 'w') as cfg:
-                        cfg.writelines(lines)
-            else:
+            target_folder = os.path.join(sys.prefix, 'Lib', 'site-packages', p)
+            if os.path.exists(base_folder) and not os.path.exists(target_folder):
+                symlink(base_folder, target_folder)
+            if not os.path.exists(target_folder):
                 remaining.append(p)
-        
+
         if remaining:
-            self.call('pip', 'install', '--upgrade', *remaining)
+            self.call('pip', 'install', *remaining)
         return ' '.join(packages),  ''
 
     def recipe_exec(self, *args):
@@ -122,13 +120,16 @@ class Application(object):
                 print(' ● {} {: <40} …'.format(step, brief), end='', flush=True)
                 self.execute()
             except RuntimeError:
+                detail = None
                 status = ansi.RED + '✗' + ansi.ENDC
             except:
                 import traceback
                 traceback.print_exc()
             
             print('\r ● {} {: <40} {}'.format(step, brief, status))
-    
+            if detail is None:
+                break
+
     def is_stale(self, filename):
         if not os.path.exists(filename):
             return True
