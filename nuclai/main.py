@@ -2,10 +2,13 @@ import os
 import re
 import sys
 import json
+import glob
 import time
 import shutil
+import tempfile
 import subprocess
 import urllib.request
+import urllib.parse
 
 
 class ansi:
@@ -73,8 +76,12 @@ class Application(object):
         packages = list(packages)
         if 'cython' in packages: packages.append('cython.py')
         for p in packages:
-            if p == 'cython': p = 'Cython'
             base_folder = os.path.join(sys.base_prefix, 'Lib', 'site-packages', p)
+            # TODO: Scan other than base_prefix, not good enough.
+            # for f in glob.glob(base_folder + '*'):
+            #     print(f, flush=True)
+            # os._exit(-1)
+
             target_folder = os.path.join(sys.prefix, 'Lib', 'site-packages', p)
             if os.path.exists(base_folder) and not os.path.exists(target_folder):
                 symlink(base_folder, target_folder)
@@ -85,10 +92,22 @@ class Application(object):
             self.call('pip', 'install', *remaining)
         return ' '.join(packages),  ''
 
+    def recipe_wheel(self, root, slug):
+        import distutils.util
+        filename = '{}-cp34-cp34m-{}.whl'.format(slug, distutils.util.get_platform().replace('.', '_').replace('-', '_'))
+        url = root + filename
+        filename = os.path.join(tempfile.mkdtemp(), filename)
+        try:
+            urllib.request.urlretrieve(url, filename)
+        except urllib.error.HTTPError as e:
+            raise RuntimeError("File not found as wheel: %s.".format(slug))
+        self.call('pip', 'install', filename)
+        return slug, ''
+
     def recipe_exec(self, *args):
         args, brief = list(args), os.path.split(args[0])[1]
         if args[0].endswith('.py'):
-            args.insert(0, 'python')
+            args.insert(0, 'python3')
         self.call(*args)
         return brief,  ''
 
