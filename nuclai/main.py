@@ -5,6 +5,7 @@ import json
 import glob
 import time
 import shutil
+import zipfile
 import tempfile
 import subprocess
 import urllib.request
@@ -67,6 +68,20 @@ class Application(object):
             self.call('python', 'setup.py', 'develop', cwd=folder)            
         return folder, ''
 
+    def recipe_extract(self, archive, target):
+        if not os.path.exists(target):
+            zf = zipfile.ZipFile(archive)
+            base, *files = zf.namelist()
+            if all([f.startswith(base) for f in files]):
+                zf.extractall(path=".")
+                print(base, '->', target)
+                shutil.move(base, target)
+            else:
+                assert False, "Found no root folder as expected."
+            zf.close()
+        os.remove(archive)
+        return target, ''
+
     def recipe_shell(self, title, *args):
         self.call(*args, shell=True)
         return title, ''
@@ -104,10 +119,17 @@ class Application(object):
         self.call('pip', 'install', filename)
         return slug, ''
 
+    def recipe_del(self, target):
+        if os.path.isfile(target):
+            os.remove(target)
+        if os.path.isdir(target):
+            shutil.rmtree(target)
+        return target, ''
+
     def recipe_exec(self, *args):
         args, brief = list(args), os.path.split(args[0])[1]
         if args[0].endswith('.py'):
-            args.insert(0, 'python3')
+            args.insert(0, 'python')
         self.call(*args)
         return brief,  ''
 
@@ -117,7 +139,10 @@ class Application(object):
         return file, ''
 
     def recipe_open(self, target):
-        self.call('open', target)
+        if 'win32' in sys.platform:
+            os.startfile(target.replace(r'/', r'\\'))
+        else:
+            self.call('open', target)
         return target, ''
 
     def cmd_install(self, name, pkg):
@@ -145,7 +170,7 @@ class Application(object):
                 import traceback
                 traceback.print_exc()
             
-            print('\r ● {} {: <40} {}'.format(step, brief, status))
+            print('\r ● {} {: <40} {}'.format(step, brief, status), flush=True)
             if detail is None:
                 break
 
