@@ -27,20 +27,6 @@ def display(text, color=ansi.WHITE):
     bold = color.replace('[0;', '[1;')
     text = re.sub(r'`(.*?)`', r'`{}\1{}`'.format(bold, color), text)
     print(color + text + ansi.ENDC)
-    
-
-def symlink(src, dst):
-    if 'win32' in sys.platform:
-        import ctypes
-        kernel32 = ctypes.windll.LoadLibrary("kernel32.dll")
-        kernel32.CreateSymbolicLinkW(dst, src, 1)
-        if not os.path.exists(dst):
-            if os.path.isdir(src):
-                shutil.copytree(src, dst)
-            else:
-                shutil.copy(src, dst)
-    else:
-        os.symlink(src, dst)
 
 
 class Application(object):
@@ -62,13 +48,14 @@ class Application(object):
     
     def recipe_github(self, repo, rev):
         folder = re.split('[/.]', repo)[1]
-        if not os.path.exists(folder):
-            self.call('git', 'clone', 'https://github.com/'+repo)
+        target = os.path.join('common', folder)
+        if not os.path.exists(target):
+            self.call('git', 'clone', 'https://github.com/'+repo, target)
         else:
-            self.call('git', 'pull', cwd=folder)
-        self.call('git', 'reset', '--hard', rev, cwd=folder)
-        if os.path.exists(os.path.join(folder, 'setup.py')):
-            self.call('python', 'setup.py', 'develop', cwd=folder)            
+            self.call('git', 'pull', cwd=target)
+        self.call('git', 'reset', '--hard', rev, cwd=target)
+        if os.path.exists(os.path.join(target, 'setup.py')):
+            self.call('python', 'setup.py', 'develop', cwd=target)            
         return folder, ''
 
     def recipe_extract(self, archive, target):
@@ -77,7 +64,6 @@ class Application(object):
             base, *files = zf.namelist()
             if all([f.startswith(base) for f in files]):
                 zf.extractall(path=".")
-                print(base, '->', target)
                 shutil.move(base, target)
             else:
                 assert False, "Found no root folder as expected."
@@ -90,24 +76,7 @@ class Application(object):
         return title, ''
 
     def recipe_pypi(self, *packages):
-        remaining = []
-        packages = list(packages)
-        if 'cython' in packages: packages.append('cython.py')
-        for p in packages:
-            base_folder = os.path.join(sys.base_prefix, 'Lib', 'site-packages', p)
-            # TODO: Scan other than base_prefix, not good enough.
-            # for f in glob.glob(base_folder + '*'):
-            #     print(f, flush=True)
-            # os._exit(-1)
-
-            target_folder = os.path.join(sys.prefix, 'Lib', 'site-packages', p)
-            if os.path.exists(base_folder) and not os.path.exists(target_folder):
-                symlink(base_folder, target_folder)
-            if not os.path.exists(target_folder):
-                remaining.append(p)
-
-        if remaining:
-            self.call('pip', 'install', *remaining)
+        self.call('pip', 'install', *packages)
         return ' '.join(packages),  ''
 
     def recipe_wheel(self, root, slug):
@@ -197,19 +166,21 @@ class Application(object):
         return params
 
     def main(self, args):
-        params = self._parse(args)
+        self.params = self._parse(args)
 
-        cmd, package = params.command, params.package
+        cmd, package = self.params.command, self.params.package
         command = getattr(self, 'cmd_'+cmd)
 
         if not os.path.isdir(package):
-            os.mkdir(package)            
-        os.chdir(package)
+            os.mkdir(package)
+            
+        if not os.path.isdir('common'):
+            os.mkdir('common')
 
-        filename = package+'.json'
+        filename = os.path.join(package, package+'.json')
         if self.is_stale(filename):
             try:
-                urllib.request.urlretrieve('http://courses.nucl.ai/packages/'+filename, filename)
+                urllib.request.urlretrieve('http://courses.nucl.ai/packages/{}.json'.format(package), filename)
             except urllib.error.HTTPError as e:
                 if e.code == 404:
                     display('ERROR: Remote package `{}` does not seem to exist.'.format(package), ansi.RED)
