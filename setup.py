@@ -8,7 +8,7 @@ pwd = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(pwd)
 
 try:
-    import nuclai
+    import nuclai.__main__ as nuclai
     VERSION = nuclai.__version__
 except ImportError as e:
     VERSION = 'N/A'

@@ -57,9 +57,12 @@ class Application(object):
         else:
             self.call('git', 'pull', cwd=target)
         self.call('git', 'reset', '--hard', rev, cwd=target)
-        if os.path.exists(os.path.join(target, 'setup.py')):
-            self.call('python', 'setup.py', 'develop', cwd=target)
-        return folder, ''
+        return folder, '', target
+
+    def recipe_ghpy(self, repo, rev):
+        short, desc, target = self.recipe_github(repo, rev)
+        self.call('python', 'setup.py', 'develop', cwd=target)
+        return short, desc
 
     def recipe_extract(self, archive, target):
         if not os.path.exists(target):
@@ -135,7 +138,7 @@ class Application(object):
 
             try:
                 status = '✓'
-                brief, detail = recipe(*args)
+                brief, detail, *_ = recipe(*args)
                 print(' ● {} {: <40} …'.format(step, brief), end='', flush=True)
                 self.execute()
             except RuntimeError:
