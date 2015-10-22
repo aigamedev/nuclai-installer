@@ -13,7 +13,7 @@ import urllib.request
 import urllib.parse
 
 
-from . import __version__
+__version__ = '0.1'
 
 
 class ansi:
@@ -204,7 +204,7 @@ def main(args):
         
         # Optionally relaunch the application to let Python update the stdout encoding.
         try:
-            print("…\r")
+            print("…\r \r", end='')
         except UnicodeEncodeError:
             os.execv(sys.executable, [sys.executable] + args)
 

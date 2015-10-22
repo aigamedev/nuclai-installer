@@ -1,7 +1,6 @@
 # Package information for PYPI.
 __name__ = 'nuclai'
 __author__ = 'alexjc'
-__version__ = '0.1'
 
 # Check version numbers.
 import sys
