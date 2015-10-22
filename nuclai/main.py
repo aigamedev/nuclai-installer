@@ -169,7 +169,7 @@ class Application(object):
             except RuntimeError:
                 detail = None
                 status = ansi.RED_B + '✗' + ansi.ENDC
-                print('\n%sRuntime error while executing command. See `%s` for details.%s' % (ansi.RED, self.command, ansi.ENDC))
+                display('\nERROR: Failed during command execution. See `{}.log` for details.'.format(self.command), ansi.RED)
             except:
                 import traceback
                 traceback.print_exc()
@@ -194,7 +194,6 @@ class Application(object):
         p_demo = sub.add_parser('demo', help='Run demonstration for an installed package.')
         p_demo.add_argument('package', type=str)
         params = root.parse_args(args)
-        print(params)
         return params
 
     def main(self, args):
@@ -208,8 +207,16 @@ class Application(object):
         os.chdir(package)
 
         filename = package+'.json'
-        # if self.is_stale(filename):
-        #     urllib.request.urlretrieve('http://courses.nucl.ai/packages/'+filename, filename)
+        if self.is_stale(filename):
+            try:
+                urllib.request.urlretrieve('http://courses.nucl.ai/packages/'+filename, filename)
+            except urllib.error.HTTPError as e:
+                if e.code == 404:
+                    display('ERROR: Remote package `{}` does not seem to exist.'.format(package), ansi.RED)
+                else:
+                    display('ERROR: Failed to download remote package specification `{}`.'.format(filename), ansi.RED)
+                return 1
+
         pkg = json.load(open(filename))
         
         self.command = cmd
