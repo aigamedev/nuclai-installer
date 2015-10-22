@@ -6,6 +6,7 @@ import glob
 import time
 import shutil
 import zipfile
+import argparse
 import tempfile
 import subprocess
 import urllib.request
@@ -51,6 +52,8 @@ class Application(object):
         self.calls.append((cmdline, params))
         
     def execute(self):
+        self.log.truncate()
+
         for cmdline, params in self.calls:
             ret = subprocess.call(cmdline, stdout=self.log, stderr=self.log, **params)
             if ret != 0:
@@ -165,7 +168,8 @@ class Application(object):
                 self.execute()
             except RuntimeError:
                 detail = None
-                status = ansi.RED + '✗' + ansi.ENDC
+                status = ansi.RED_B + '✗' + ansi.ENDC
+                print('\n%sRuntime error while executing command. See `%s` for details.%s' % (ansi.RED, self.command, ansi.ENDC))
             except:
                 import traceback
                 traceback.print_exc()
@@ -181,21 +185,34 @@ class Application(object):
         modified = os.path.getmtime(filename)
         yesterday = time.time() - 24 * 3600
         return bool(modified < yesterday)
-    
+
+    def _parse(self, args):
+        root = argparse.ArgumentParser(prog='nuclai')
+        sub = root.add_subparsers(title='commands', dest='command', description='Specific commands available.')
+        p_install = sub.add_parser('install', help='Download and setup a remote package.')
+        p_install.add_argument('package', type=str)
+        p_demo = sub.add_parser('demo', help='Run demonstration for an installed package.')
+        p_demo.add_argument('package', type=str)
+        params = root.parse_args(args)
+        print(params)
+        return params
+
     def main(self, args):
-        # TODO: Error handling when no arguments are specified, argparse.
-        cmd, package = args[1], args[2]
+        params = self._parse(args)
+
+        cmd, package = params.command, params.package
         command = getattr(self, 'cmd_'+cmd)
 
         if not os.path.isdir(package):
-            os.mkdir(package)
+            os.mkdir(package)            
         os.chdir(package)
 
         filename = package+'.json'
-        if self.is_stale(filename):
-            urllib.request.urlretrieve('http://courses.nucl.ai/packages/'+filename, filename)
+        # if self.is_stale(filename):
+        #     urllib.request.urlretrieve('http://courses.nucl.ai/packages/'+filename, filename)
         pkg = json.load(open(filename))
         
+        self.command = cmd
         self.log = open(cmd+'.log', 'w')
         command(package, pkg)
         print('')
@@ -216,4 +233,4 @@ def main(args):
         return 1
 
     app = Application()
-    return app.main(args)
+    return app.main(args[1:])
