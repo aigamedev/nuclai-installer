@@ -13,6 +13,9 @@ import urllib.request
 import urllib.parse
 
 
+from . import __version__
+
+
 class ansi:
     WHITE = '\033[0;97m'
     WHITE_B = '\033[1;97m'
@@ -55,7 +58,7 @@ class Application(object):
             self.call('git', 'pull', cwd=target)
         self.call('git', 'reset', '--hard', rev, cwd=target)
         if os.path.exists(os.path.join(target, 'setup.py')):
-            self.call('python', 'setup.py', 'develop', cwd=target)            
+            self.call('python', 'setup.py', 'develop', cwd=target)
         return folder, ''
 
     def recipe_extract(self, archive, target):
@@ -168,40 +171,42 @@ class Application(object):
     def main(self, args):
         self.params = self._parse(args)
 
-        cmd, package = self.params.command, self.params.package
-        command = getattr(self, 'cmd_'+cmd)
+        self.command, package = self.params.command, self.params.package
+        self.log = open(self.command+'.log', 'w')
 
         if not os.path.isdir(package):
-            os.mkdir(package)
+            self.call('git', 'clone', 'http://courses.nucl.ai/packages/{}.git'.format(package))
+        else:
+            self.call('git', 'pull', '-u', cwd=package)
+        self.execute()
             
         if not os.path.isdir('common'):
             os.mkdir('common')
 
-        filename = os.path.join(package, package+'.json')
-        if self.is_stale(filename):
-            try:
-                urllib.request.urlretrieve('http://courses.nucl.ai/packages/{}.json'.format(package), filename)
-            except urllib.error.HTTPError as e:
-                if e.code == 404:
-                    display('ERROR: Remote package `{}` does not seem to exist.'.format(package), ansi.RED)
-                else:
-                    display('ERROR: Failed to download remote package specification `{}`.'.format(filename), ansi.RED)
-                return 1
-
+        filename = os.path.join(package, 'nuclai.json')
         pkg = json.load(open(filename))
+        if float(__version__) < float(pkg['version']):
+            display('ERROR: Run `pip install --upgrade nuclai` to get latest tool version.'.format(package), ansi.RED)
+            return 1
         
-        self.command = cmd
-        self.log = open(cmd+'.log', 'w')
-        command(package, pkg)
+        proc = getattr(self, 'cmd_'+self.command)
+        proc(package, pkg)
         print('')
         return 0
 
 
 def main(args):
-    # Must be a UTF-8 compatible codepage in the terminal or output doesn't work.
+    # Windows needs some customization to work out-of-the-box.  
     if 'win32' in sys.platform:
+        # Must be a UTF-8 compatible codepage in the terminal or output doesn't work.
         with open(os.devnull, 'w') as null:
             subprocess.call(['chcp', '65001'], stdout=null, stderr=null, shell=True)
+        
+        # Optionally relaunch the application to let Python update the stdout encoding.
+        try:
+            print("…\r")
+        except UnicodeEncodeError:
+            os.execv(sys.executable, [sys.executable] + args)
 
     # Fail if the user is running from a system-wide Python 3.4 installation.
     if not hasattr(sys, 'base_prefix'):

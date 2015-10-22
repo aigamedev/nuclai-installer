@@ -1,4 +1,9 @@
 import os
+import sys
+
+# Setup the path to known locations of GLFW's DLL on Windows
+if 'win32' in sys.platform:
+        os.environ['PATH'] = os.environ['PATH'] + ';' + r'C:\ProgramData\chocolatey\bin\msvcrt120'
 
 # Inject support for local font loading into VisPy.
 def _get_vispy_font_filename(face, bold, italic):
