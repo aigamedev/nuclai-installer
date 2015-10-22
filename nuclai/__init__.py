@@ -15,7 +15,6 @@ except ImportError:
     pass
 
 # Call the main entry point.
-from .main import main
-
 def run():
+    from .__main__ import main
     sys.exit(main(sys.argv))

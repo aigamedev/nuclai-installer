@@ -212,3 +212,7 @@ def main(args):
 
     app = Application()
     return app.main(args[1:])
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
