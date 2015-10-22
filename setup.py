@@ -32,6 +32,7 @@ setup(name='nuclai',
       scripts=['scripts/nuclai'],
       packages=find_packages(),
 
+      include_package_data=True,
       install_requires=[
             'colorama' if sys.platform == 'win32' else '',
       ])
