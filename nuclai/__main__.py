@@ -128,6 +128,7 @@ class Application(object):
         self.do_recipes(pkg['install']['osx'])
 
     def cmd_demo(self, name, pkg):
+        os.chdir(name)
         display('Demonstrating nucl.ai package `{}`.'.format(name), ansi.BLUE)
         self.do_recipes(pkg['demo'])
         
@@ -144,7 +145,7 @@ class Application(object):
             except RuntimeError:
                 detail = None
                 status = ansi.RED_B + '✗' + ansi.ENDC
-                display('\nERROR: Failed during command execution. See `{}.log` for details.'.format(self.command), ansi.RED)
+                display('\rERROR: Failed during command execution. See `{}.log` for details.'.format(self.command), ansi.RED)
             except:
                 import traceback
                 traceback.print_exc()
