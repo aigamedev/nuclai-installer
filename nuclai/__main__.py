@@ -139,21 +139,24 @@ class Application(object):
             step = ansi.WHITE_B+('{: <8}'.format(cmd))+ansi.ENDC
 
             try:
-                status = '✓'
+                status, error = '✓', None
                 brief, detail, *_ = recipe(*args)
                 print(' ● {} {: <40} …'.format(step, brief), end='', flush=True)
                 self.execute()
             except RuntimeError:
                 detail, status = None, ansi.RED_B + '✗' + ansi.ENDC
-                display('\rERROR: Failed during command execution. See `{}.log` for details.'.format(self.command), ansi.RED)
+                error = '\rERROR: Failed during command execution. See `{}.log` for details.'.format(self.command)
             except OSError as e:
                 detail, status = None, ansi.RED_B + '✗' + ansi.ENDC
-                display('\rERROR: Could not execute `{}`; {}.'.format(self.cmdline[0], e.strerror), ansi.RED)
+                error = '\rERROR: Could not execute `{}`; {}.'.format(self.cmdline[0], e.strerror)
             except:
                 import traceback
                 traceback.print_exc()
             
             print('\r ● {} {: <40} {}'.format(step, brief, status), flush=True)
+            if error is not None:
+                display("\n" + error + "\n\n  > {}".format(' '.join(self.cmdline)), ansi.RED)
+
             if detail is None:
                 break
 
@@ -189,10 +192,14 @@ class Application(object):
             
         try:
             self.execute()
+            self.log.truncate()
         except RuntimeError:
             display('ERROR: Failed to retrieve package. See `{}.log` for details.'.format(self.command), ansi.RED)
+            return 1
         except OSError as e:
-            display('ERROR: Could not execute `{}`; {}.'.format(self.cmdline[0], e.strerror), ansi.RED)
+            self.log.write(e.strerror)
+            display('ERROR: Could not execute `{}`, error code {}.'.format(self.cmdline[0], e.errno), ansi.RED)
+            return 1
 
         if not os.path.isdir('common'):
             os.mkdir('common')
@@ -220,7 +227,7 @@ def main(args):
         try:
             print("…\r \r", end='')
         except UnicodeEncodeError:
-            return os.spawnv(sys.executable, args)
+            return os.spawnv(os.P_WAIT, sys.executable, [sys.executable] + args)
 
     # Fail if the user is running from a system-wide Python 3.4 installation.
     if not hasattr(sys, 'base_prefix'):
