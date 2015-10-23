@@ -1,16 +1,14 @@
 Installation
 ============
 
-1. Setup Python 3.4 or above; versions 2.x are not supported.
-
-2. Create and activate a "virtual environment" for Python 3 as follows::
+1. Setup Python 3.4 or above in a virtual environment::
 
 	# All platforms.
-	> python -m venv pyenv
-	
-	# Windows.
+	> python -m venv --system-site-packages pyenv
+
+	# Windows 7/8/10.
 	> pyenv/Scripts/activate.bat
-	# Posix.
+	# MacOSX and Linux.
 	> source pyenv/bin/activate
 
 3. Install this tool from PIP directly with this short command::
@@ -19,7 +17,7 @@ Installation
 	
 4. Test the script to make sure everything works as expected::
 
-	> nuclai help
+	> nuclai --help
 
 Usage
 =====
