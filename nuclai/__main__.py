@@ -13,7 +13,7 @@ import urllib.request
 import urllib.parse
 
 
-__version__ = '0.1'
+__version__ = '0.2'
 
 
 class ansi:
@@ -44,9 +44,10 @@ class Application(object):
         self.log.truncate()
 
         for cmdline, params in self.calls:
+            self.cmdline = cmdline
             ret = subprocess.call(cmdline, stdout=self.log, stderr=self.log, **params)
             if ret != 0:
-                raise RuntimeError('Command returned status %i.' % ret)
+                raise RuntimeError('Command {} returned status {}.'.format(cmdline[0], ret))
         self.calls = []
     
     def recipe_github(self, repo, rev):
@@ -143,9 +144,11 @@ class Application(object):
                 print(' ● {} {: <40} …'.format(step, brief), end='', flush=True)
                 self.execute()
             except RuntimeError:
-                detail = None
-                status = ansi.RED_B + '✗' + ansi.ENDC
+                detail, status = None, ansi.RED_B + '✗' + ansi.ENDC
                 display('\rERROR: Failed during command execution. See `{}.log` for details.'.format(self.command), ansi.RED)
+            except OSError as e:
+                detail, status = None, ansi.RED_B + '✗' + ansi.ENDC
+                display('\rERROR: Could not execute `{}`; {}.'.format(self.cmdline[0], e.strerror), ansi.RED)
             except:
                 import traceback
                 traceback.print_exc()
@@ -181,9 +184,10 @@ class Application(object):
         if not os.path.isdir(package):
             self.call('git', 'clone', 'http://courses.nucl.ai/packages/{}.git'.format(package))
         else:
-            self.call('git', 'pull', '-u', cwd=package)
+            self.call('git', 'pull', cwd=package)
+            self.call('git', 'checkout', cwd=package)
         self.execute()
-            
+
         if not os.path.isdir('common'):
             os.mkdir('common')
 
@@ -210,7 +214,7 @@ def main(args):
         try:
             print("…\r \r", end='')
         except UnicodeEncodeError:
-            os.execv(sys.executable, [sys.executable] + args)
+            return os.spawnv(sys.executable, args)
 
     # Fail if the user is running from a system-wide Python 3.4 installation.
     if not hasattr(sys, 'base_prefix'):
