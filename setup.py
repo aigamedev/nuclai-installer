@@ -29,7 +29,7 @@ setup(name='nuclai',
       ],
       license='GNU GPLv3',
 
-      scripts=['scripts/nuclai'],
+      scripts=['scripts/nuclai', 'scripts/nuclai.bat'],
       packages=find_packages(),
 
       include_package_data=True,

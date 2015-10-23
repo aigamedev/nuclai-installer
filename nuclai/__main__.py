@@ -171,6 +171,7 @@ class Application(object):
     def _parse(self, args):
         root = argparse.ArgumentParser(prog='nuclai')
         sub = root.add_subparsers(title='commands', dest='command', description='Specific commands available.')
+        sub.required = True
         p_install = sub.add_parser('install', help='Download and setup a remote package.')
         p_install.add_argument('package', type=str)
         p_demo = sub.add_parser('demo', help='Run demonstration for an installed package.')
@@ -217,7 +218,7 @@ class Application(object):
 
 
 def main(args):
-    # Windows needs some customization to work out-of-the-box.  
+    # Window terminals need some customization to work out-of-the-box with unicode.  
     if 'win32' in sys.platform:
         # Must be a UTF-8 compatible codepage in the terminal or output doesn't work.
         with open(os.devnull, 'w') as null:
@@ -228,6 +229,12 @@ def main(args):
             print("…\r \r", end='')
         except UnicodeEncodeError:
             return os.spawnv(os.P_WAIT, sys.executable, [sys.executable] + args)
+
+    # Use colored console output; required on Windows only, works by default elsewhere.
+    try:
+        import colorama; colorama.init(); del colorama
+    except ImportError:
+        pass
 
     # Fail if the user is running from a system-wide Python 3.4 installation.
     if not hasattr(sys, 'base_prefix'):
