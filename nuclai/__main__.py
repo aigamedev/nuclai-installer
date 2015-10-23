@@ -13,7 +13,7 @@ import urllib.request
 import urllib.parse
 
 
-__version__ = '0.2'
+__version__ = '0.3'
 
 
 class ansi:
