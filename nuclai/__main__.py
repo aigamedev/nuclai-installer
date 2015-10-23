@@ -186,7 +186,13 @@ class Application(object):
         else:
             self.call('git', 'pull', cwd=package)
             self.call('git', 'checkout', cwd=package)
-        self.execute()
+            
+        try:
+            self.execute()
+        except RuntimeError:
+            display('ERROR: Failed to retrieve package. See `{}.log` for details.'.format(self.command), ansi.RED)
+        except OSError as e:
+            display('ERROR: Could not execute `{}`; {}.'.format(self.cmdline[0], e.strerror), ansi.RED)
 
         if not os.path.isdir('common'):
             os.mkdir('common')
