@@ -13,13 +13,14 @@ import urllib.request
 import urllib.parse
 
 
-__version__ = '0.4'
+__version__ = '0.5'
 
 
 class ansi:
     WHITE = '\033[0;97m'
     WHITE_B = '\033[1;97m'
     YELLOW = '\033[0;33m'
+    YELLOW_B = '\033[1;33m'
     RED = '\033[0;31m'
     RED_B = '\033[1;31m'
     GREEN = '\033[0;32m'
@@ -235,6 +236,10 @@ def main(args):
         import colorama; colorama.init(); del colorama
     except ImportError:
         pass
+
+    import platform
+    if platform.architecture()[0] != '64bit':
+        display('WARNING: Running on 32-bit platforms is not officially supported.\n', color=ansi.YELLOW_B)
 
     # Fail if the user is running from a system-wide Python 3.4 installation.
     if not hasattr(sys, 'base_prefix'):
