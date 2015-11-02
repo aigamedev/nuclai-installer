@@ -1,2 +1,17 @@
 #!/usr/bin/env python
-from nuclai import run; run()
+try:
+    from nuclai import run; run()
+except ImportError:
+    # NOTE: setuptools modifies the path above (it's a feature, apparently)
+    # and PIP somehow does not install with the correct environment
+    # variables, so on OSX there may be import errors here.
+    # 
+    # Here we hack around the problem by finding a venv-local interpreter
+    # to run instead of the one called by accident.
+    
+    import os
+    import sys
+
+    path = os.path.join(os.path.dirname(__file__), 'python')
+    assert os.path.exists(path), "WARNING: Please run `python -m nuclai` instead."
+    os.execv(path, [path] + sys.argv)
