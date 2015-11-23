@@ -121,7 +121,9 @@ class Application(object):
     def recipe_open(self, target):
         if 'win32' in sys.platform:
             os.startfile(target.replace(r'/', r'\\'))
-        else:
+        elif 'linux' in sys.platform:
+            self.call('xdg-open', target)
+        else: 
             self.call('open', target)
         return target, ''
 
@@ -185,13 +187,11 @@ class Application(object):
 
         self.command, package = self.params.command, self.params.package
         self.log = open(self.command+'.log', 'w')
-
         if not os.path.isdir(package):
             self.call('git', 'clone', 'http://courses.nucl.ai/packages/{}.git'.format(package))
         else:
             self.call('git', 'pull', cwd=package)
             self.call('git', 'checkout', cwd=package)
-            
         try:
             self.execute()
             self.log.truncate()
