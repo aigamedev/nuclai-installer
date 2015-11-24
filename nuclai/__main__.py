@@ -95,7 +95,7 @@ class Application(object):
         try:
             urllib.request.urlretrieve(url, filename)
         except urllib.error.HTTPError as e:
-            raise RuntimeError("File not found as wheel: %s.".format(slug))
+            raise RuntimeError("File not found as wheel: {}.".format(slug))
         self.call('pip', 'install', filename)
         return slug, ''
 
@@ -140,26 +140,33 @@ class Application(object):
         for cmd, *args in recipes:
             recipe = getattr(self, 'recipe_'+cmd)
             step = ansi.WHITE_B+('{: <8}'.format(cmd))+ansi.ENDC
-
+            self.cmdline = None # reset cmdline, otherwsie it remembers an old one if new one is not set
+            exception = None
             try:
                 status, error = '✓', None
                 brief, detail, *_ = recipe(*args)
                 print(' ● {} {: <40} …'.format(step, brief), end='', flush=True)
                 self.execute()
-            except RuntimeError:
+            except RuntimeError as e:
                 detail, status = None, ansi.RED_B + '✗' + ansi.ENDC
                 error = '\rERROR: Failed during command execution. See `{}.log` for details.'.format(self.command)
+                exception = e 
             except OSError as e:
                 detail, status = None, ansi.RED_B + '✗' + ansi.ENDC
                 error = '\rERROR: Could not execute `{}`; {}.'.format(self.cmdline[0], e.strerror)
+                exception = e 
             except:
                 import traceback
                 traceback.print_exc()
             
             print('\r ● {} {: <40} {}'.format(step, brief, status), flush=True)
             if error is not None:
-                display("\n" + error + "\n\n  > {}".format(' '.join(self.cmdline)), ansi.RED)
-
+                message = "Some error occured." # the default message - should never be printed
+                if self.cmdline:
+                    message = "\n" + error + "\n\n  > {}".format(' '.join(self.cmdline))
+                elif exception:
+                    message = str(exception)
+                display(message, ansi.RED)
             if detail is None:
                 break
 
@@ -187,11 +194,13 @@ class Application(object):
 
         self.command, package = self.params.command, self.params.package
         self.log = open(self.command+'.log', 'w')
+        
         if not os.path.isdir(package):
             self.call('git', 'clone', 'http://courses.nucl.ai/packages/{}.git'.format(package))
         else:
             self.call('git', 'pull', cwd=package)
             self.call('git', 'checkout', cwd=package)
+        
         try:
             self.execute()
             self.log.truncate()
