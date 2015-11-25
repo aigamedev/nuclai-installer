@@ -12,7 +12,7 @@ import subprocess
 import urllib.request
 import urllib.parse
 import uuid
-
+import distutils.util
 
 __version__ = '0.5'
 
@@ -67,11 +67,17 @@ class Application(object):
         self.call('python', 'setup.py', 'develop', cwd=target)
         return short, desc
 
-    def recipe_extract(self, archive, target):
-        if urllib.parse.urlparse(archive).netloc: #if archive is hosted somehere dowload it first
+    def recipe_extract(self, *args):
+        if len(args) == 3: # filename must be built from first and second argument
+            archive = filename = '{}{}-{}.zip'.format(args[0], args[1], distutils.util.get_platform().replace('.', '_').replace('-', '_'))
+            target = args[2] 
+        if urllib.parse.urlparse(archive).netloc: # if archive is hosted somehere on remote machine, dowload it first
             tmpArchive = str(uuid.uuid1()) + ".zip"
             urllib.request.urlretrieve(archive, tmpArchive)
-            archive = tmpArchive 
+            archive = tmpArchive
+        else:
+           archive = args[0]
+           target = args[1]
         if not os.path.exists(target):
             zf = zipfile.ZipFile(archive)
             base, *files = zf.namelist()
@@ -93,7 +99,6 @@ class Application(object):
         return ' '.join(packages),  ''
 
     def recipe_wheel(self, root, slug):
-        import distutils.util
         filename = '{}-cp34-cp34m-{}.whl'.format(slug, distutils.util.get_platform().replace('.', '_').replace('-', '_'))
         url = root + filename
         filename = os.path.join(tempfile.mkdtemp(), filename)
