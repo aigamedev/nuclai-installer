@@ -11,6 +11,7 @@ import tempfile
 import subprocess
 import urllib.request
 import urllib.parse
+import uuid
 
 
 __version__ = '0.5'
@@ -67,6 +68,10 @@ class Application(object):
         return short, desc
 
     def recipe_extract(self, archive, target):
+        if urllib.parse.urlparse(archive).netloc: #if archive is hosted somehere dowload it first
+            tmpArchive = str(uuid.uuid1()) + ".zip"
+            urllib.request.urlretrieve(archive, tmpArchive)
+            archive = tmpArchive 
         if not os.path.exists(target):
             zf = zipfile.ZipFile(archive)
             base, *files = zf.namelist()
