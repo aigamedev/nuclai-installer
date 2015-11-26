@@ -53,9 +53,9 @@ class Application(object):
                 raise RuntimeError('Command {} returned status {}.'.format(cmdline[0], ret))
         self.calls = []
     
-    def recipe_github(self, repo, rev):
+    def recipe_github(self, repo, rev, target="."):
         folder = re.split('[/.]', repo)[1]
-        target = os.path.join('common', folder)
+        target = os.path.join(target, folder)
         if not os.path.exists(target):
             self.call('git', 'clone', 'https://github.com/'+repo, target)
         else:
@@ -64,7 +64,7 @@ class Application(object):
         return folder, '', target
 
     def recipe_ghpy(self, repo, rev):
-        short, desc, target = self.recipe_github(repo, rev)
+        short, desc, target = self.recipe_github(repo, rev, 'github')
         self.call('python', 'setup.py', 'develop', cwd=target)
         return short, desc
 
