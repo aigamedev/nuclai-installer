@@ -83,7 +83,7 @@ class Application(object):
            archive = args[0] + archiveFormat
            target = args[1]
         if not os.path.exists(target):
-            if 'linux' in sys.platform: # there is a bug in zipfile - if doesn't set the X for executables
+            if 'linux' in sys.platform: # .tar here becasue zip dpesn't store permissions.
                 archiveFile = tarfile.TarFile(archive)
                 base, *files = archiveFile.getmembers()
                 validate = lambda f: f.name.startswith(base.name)
