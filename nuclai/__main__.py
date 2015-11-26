@@ -6,6 +6,7 @@ import glob
 import time
 import shutil
 import zipfile
+import tarfile
 import argparse
 import tempfile
 import subprocess
@@ -68,25 +69,34 @@ class Application(object):
         return short, desc
 
     def recipe_extract(self, *args):
+        archiveFormat = "zip"
+        if 'linux' in sys.platform:
+            archiveFormat = "tar" 
         if len(args) == 3: # filename must be built from first and second argument
-            archive = filename = '{}{}-{}.zip'.format(args[0], args[1], distutils.util.get_platform().replace('.', '_').replace('-', '_'))
+            archive = filename = '{}{}-{}.{}'.format(args[0], args[1], distutils.util.get_platform().replace('.', '_').replace('-', '_'), archiveFormat)
             target = args[2] 
         if urllib.parse.urlparse(archive).netloc: # if archive is hosted somehere on remote machine, dowload it first
-            tmpArchive = str(uuid.uuid1()) + ".zip"
+            tmpArchive = str(uuid.uuid1()) + "." + archiveFormat
             urllib.request.urlretrieve(archive, tmpArchive)
             archive = tmpArchive
         else:
-           archive = args[0]
+           archive = args[0] + archiveFormat
            target = args[1]
         if not os.path.exists(target):
-            zf = zipfile.ZipFile(archive)
-            base, *files = zf.namelist()
-            if all([f.startswith(base) for f in files]):
-                zf.extractall(path=".")
-                shutil.move(base, target)
+            if 'linux' in sys.platform: # there is a bug in zipfile - if doesn't set the X for executables
+                archiveFile = tarfile.TarFile(archive)
+                base, *files = archiveFile.getmembers()
+                validate = lambda f: f.name.startswith(base.name)
+            else:
+                archiveFile = zipfile.ZipFile(archive)
+                base, *files = archiveFile.namelist()
+                vaidate = lambda f: f.startswith(base)
+            if all([validate(f) for f in files]):
+                archiveFile.extractall(path=".")
+                shutil.move(base.name, target)
             else:
                 assert False, "Found no root folder as expected."
-            zf.close()
+            archiveFile.close()
         os.remove(archive)
         return target, ''
 
