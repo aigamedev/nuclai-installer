@@ -74,7 +74,7 @@ class Application(object):
             archiveFormat = "tar" 
         if len(args) == 3: # filename must be built from first and second argument
             archive = filename = '{}{}-{}.{}'.format(args[0], args[1], distutils.util.get_platform().replace('.', '_').replace('-', '_'), archiveFormat)
-            target = args[2] 
+            target = args[2]
         if urllib.parse.urlparse(archive).netloc: # if archive is hosted somehere on remote machine, dowload it first
             tmpArchive = str(uuid.uuid1()) + "." + archiveFormat
             urllib.request.urlretrieve(archive, tmpArchive)
@@ -90,7 +90,7 @@ class Application(object):
             else:
                 archiveFile = zipfile.ZipFile(archive)
                 base, *files = archiveFile.namelist()
-                vaidate = lambda f: f.startswith(base)
+                validate = lambda f: f.startswith(base)
             if all([validate(f) for f in files]):
                 archiveFile.extractall(path=".")
                 shutil.move(base.name, target)
@@ -109,7 +109,8 @@ class Application(object):
         return ' '.join(packages),  ''
 
     def recipe_wheel(self, root, slug):
-        filename = '{}-cp34-cp34m-{}.whl'.format(slug, distutils.util.get_platform().replace('.', '_').replace('-', '_'))
+        cp = "cp" + str(sys.version_info.major) + str(sys.version_info.minor)
+        filename = '{}-{}-{}m-{}.whl'.format(slug, cp, cp, distutils.util.get_platform().replace('.', '_').replace('-', '_'))
         url = root + filename
         filename = os.path.join(tempfile.mkdtemp(), filename)
         try:
