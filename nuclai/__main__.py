@@ -69,6 +69,7 @@ class Application(object):
         return short, desc
 
     def recipe_extract(self, archive, target):
+        forceClean = False
         archiveFormat = "zip"
         if 'linux' in sys.platform or 'darwin' in sys.platform:
             archiveFormat = "tar" 
@@ -79,29 +80,34 @@ class Application(object):
             tmpArchive = str(uuid.uuid1()) + "." + archiveFormat
             urllib.request.urlretrieve(archive, tmpArchive)
             archive = tmpArchive
+            forceClean = True
         else:
            archive = archie + archiveFormat
 
-        if not os.path.exists(target):
-            if 'linux' in sys.platform or 'darwin' in sys.platform: # .tar here becasue zip doesn't store permissions.
-                archiveFile = tarfile.TarFile(archive)
-                if 'darwin' in sys.platform:
-                    _, base, *files = archiveFile.getmembers() # one extra file for mac
+        try:
+            if not os.path.exists(target):
+                if 'linux' in sys.platform or 'darwin' in sys.platform: # .tar here becasue zip doesn't store permissions.
+                    archiveFile = tarfile.TarFile(archive)
+                    if 'darwin' in sys.platform:
+                        _, base, *files = archiveFile.getmembers() # one extra file for mac
+                    else:
+                        base, *files = archiveFile.getmembers()
+                    base = base.name 
+                    validate = lambda f: f.name.startswith(base)
                 else:
-                    base, *files = archiveFile.getmembers()
-                base = base.name 
-                validate = lambda f: f.name.startswith(base)
-            else:
-                archiveFile = zipfile.ZipFile(archive)
-                base, *files = archiveFile.namelist()
-                validate = lambda f: f.startswith(base)
-            if all([validate(f) for f in files]):
-                archiveFile.extractall(path=".")
-                shutil.move(base, target)
-            else:
-                assert False, "Found no root folder as expected."
-            archiveFile.close()
-        os.remove(archive)
+                    archiveFile = zipfile.ZipFile(archive)
+                    base, *files = archiveFile.namelist()
+                    validate = lambda f: f.startswith(base)
+                if all([validate(f) for f in files]):
+                    archiveFile.extractall(path=".")
+                    shutil.move(base, target)
+                else:
+                    assert False, "Found no root folder as expected."
+                archiveFile.close()
+        finally:
+            if forceClean: os.remove(archive) # if archive downloaded. always remove
+
+        if not forceClean: os.remove(archive) # if archive from local filesystem, remove only on success
         return target, ''
 
     def recipe_shell(self, title, *args):
