@@ -86,14 +86,15 @@ class Application(object):
             if 'linux' in sys.platform: # .tar here becasue zip dpesn't store permissions.
                 archiveFile = tarfile.TarFile(archive)
                 base, *files = archiveFile.getmembers()
-                validate = lambda f: f.name.startswith(base.name)
+                base = base.name 
+                validate = lambda f: f.name.startswith(base)
             else:
                 archiveFile = zipfile.ZipFile(archive)
                 base, *files = archiveFile.namelist()
                 validate = lambda f: f.startswith(base)
             if all([validate(f) for f in files]):
                 archiveFile.extractall(path=".")
-                shutil.move(base.name, target)
+                shutil.move(base, target)
             else:
                 assert False, "Found no root folder as expected."
             archiveFile.close()
