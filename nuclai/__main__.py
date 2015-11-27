@@ -68,20 +68,20 @@ class Application(object):
         self.call('python', 'setup.py', 'develop', cwd=target)
         return short, desc
 
-    def recipe_extract(self, *args):
+    def recipe_extract(self, archive, target):
         archiveFormat = "zip"
         if 'linux' in sys.platform or 'darwin' in sys.platform:
             archiveFormat = "tar" 
-        if len(args) == 3: # filename must be built from first and second argument
-            archive = filename = '{}{}-{}.{}'.format(args[0], args[1], distutils.util.get_platform().replace('.', '_').replace('-', '_'), archiveFormat)
-            target = args[2]
+
         if urllib.parse.urlparse(archive).netloc: # if archive is hosted somehere on remote machine, dowload it first
+            archive = archive + "/" + archive.split("/")[-1] if archive.split("/")[-1] else archive + archive.split("/")[-2] # if absolute
+            archive = filename = '{}-{}.{}'.format(archive, distutils.util.get_platform().replace('.', '_').replace('-', '_'), archiveFormat)
             tmpArchive = str(uuid.uuid1()) + "." + archiveFormat
             urllib.request.urlretrieve(archive, tmpArchive)
             archive = tmpArchive
         else:
-           archive = args[0] + archiveFormat
-           target = args[1]
+           archive = archie + archiveFormat
+
         if not os.path.exists(target):
             if 'linux' in sys.platform or 'darwin' in sys.platform: # .tar here becasue zip doesn't store permissions.
                 archiveFile = tarfile.TarFile(archive)
