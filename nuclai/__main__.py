@@ -70,7 +70,7 @@ class Application(object):
 
     def recipe_extract(self, *args):
         archiveFormat = "zip"
-        if 'linux' in sys.platform:
+        if 'linux' in sys.platform or 'darwin' in sys.platform:
             archiveFormat = "tar" 
         if len(args) == 3: # filename must be built from first and second argument
             archive = filename = '{}{}-{}.{}'.format(args[0], args[1], distutils.util.get_platform().replace('.', '_').replace('-', '_'), archiveFormat)
@@ -83,9 +83,12 @@ class Application(object):
            archive = args[0] + archiveFormat
            target = args[1]
         if not os.path.exists(target):
-            if 'linux' in sys.platform: # .tar here becasue zip dpesn't store permissions.
+            if 'linux' in sys.platform or 'darwin' in sys.platform: # .tar here becasue zip doesn't store permissions.
                 archiveFile = tarfile.TarFile(archive)
-                base, *files = archiveFile.getmembers()
+                if 'darwin' in sys.platform:
+                    _, base, *files = archiveFile.getmembers() # one extra file for mac
+                else:
+                    base, *files = archiveFile.getmembers()
                 base = base.name 
                 validate = lambda f: f.name.startswith(base)
             else:
