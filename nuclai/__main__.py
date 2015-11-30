@@ -113,6 +113,10 @@ class Application(object):
         if not forceClean: os.remove(archive) # if archive from local filesystem, remove only on success
         return target, ''
 
+    def recipe_script(self, name):
+        exec_line = name + ".bat" if 'win32' in sys.platform else "./" + name + ".sh"
+        return self.recipe_exec(exec_line)
+        
     def recipe_shell(self, title, *args):
         self.call(*args, shell=True)
         return title, ''
