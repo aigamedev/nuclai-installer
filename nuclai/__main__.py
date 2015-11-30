@@ -78,11 +78,14 @@ class Application(object):
             archive = archive + "/" + archive.split("/")[-1] if archive.split("/")[-1] else archive + archive.split("/")[-2] # if absolute
             archive = filename = '{}-{}.{}'.format(archive, distutils.util.get_platform().replace('.', '_').replace('-', '_'), archiveFormat)
             tmpArchive = str(uuid.uuid1()) + "." + archiveFormat
-            urllib.request.urlretrieve(archive, tmpArchive)
+            try:
+                urllib.request.urlretrieve(archive, tmpArchive)
+            except urllib.error.HTTPError as e:
+                raise RuntimeError("File not found (404): {}.".format(archive))
             archive = tmpArchive
             forceClean = True
         else:
-           archive = archie + archiveFormat
+           archive = archive + archiveFormat
 
         try:
             if not os.path.exists(target):
@@ -119,8 +122,10 @@ class Application(object):
         return ' '.join(packages),  ''
 
     def recipe_wheel(self, root, slug):
-        cp = "cp" + str(sys.version_info.major) + str(sys.version_info.minor)
-        filename = '{}-{}-{}m-{}.whl'.format(slug, cp, cp, distutils.util.get_platform().replace('.', '_').replace('-', '_'))
+        # @TODO: remove hardcoded values for abi tag, try to download from the most general to the most specific
+        cp1 = "cp" + str(sys.version_info.major) + str(sys.version_info.minor)
+        cp2 = "none" if 'win32' in sys.platform else cp1 + "m"
+        filename = '{}-{}-{}-{}.whl'.format(slug, cp1, cp2, distutils.util.get_platform().replace('.', '_').replace('-', '_'))
         url = root + filename
         filename = os.path.join(tempfile.mkdtemp(), filename)
         try:
@@ -160,7 +165,8 @@ class Application(object):
 
     def cmd_install(self, name, pkg):
         display('Installing nucl.ai package `{}`.'.format(name), ansi.BLUE)
-        self.do_recipes(pkg['install']['osx'])
+        platform = 'windows' if 'win32' in sys.platform else 'osx' # the same recipe for osx and linux.
+        self.do_recipes(pkg['install'][platform])
 
     def cmd_demo(self, name, pkg):
         os.chdir(name)
