@@ -132,6 +132,7 @@ class Application(object):
         filename = '{}-{}-{}-{}.whl'.format(slug, cp1, cp2, distutils.util.get_platform().replace('.', '_').replace('-', '_'))
         url = root + filename
         filename = os.path.join(tempfile.mkdtemp(), filename)
+        self.brief = slug
         try:
             urllib.request.urlretrieve(url, filename)
         except urllib.error.HTTPError as e:
@@ -186,7 +187,7 @@ class Application(object):
             exception = None
             try:
                 status, error = '✓', None
-                brief, detail, *_ = recipe(*args)
+                self.brief, detail, *_ = recipe(*args)
                 print(' ● {} {: <40} …'.format(step, brief), end='', flush=True)
                 self.execute()
             except RuntimeError as e:
@@ -200,8 +201,11 @@ class Application(object):
             except:
                 import traceback
                 traceback.print_exc()
-            
-            print('\r ● {} {: <40} {}'.format(step, brief, status), flush=True)
+
+            if self.brief: print('\r ● {} {: <40} {}'.format(step, self.brief, status), flush=True)
+            else: print('\r ● {} {: <40} {}'.format(step, "", status), flush=True)
+            self.brief = None
+
             if error is not None:
                 message = "Some error occured." # the default message - should never be printed
                 if self.cmdline:
