@@ -170,7 +170,8 @@ class Application(object):
     def cmd_install(self, name, pkg):
         display('Installing nucl.ai package `{}`.'.format(name), ansi.BLUE)
         platform = 'windows' if 'win32' in sys.platform else 'osx' # the same recipe for osx and linux.
-        self.do_recipes(pkg['install'][platform])
+        if 'all' in pkg['install']: self.do_recipes(pkg['install']['all']) # execute common
+        if platform in pkg['install']: self.do_recipes(pkg['install'][platform]) # execute specific if any
 
     def cmd_demo(self, name, pkg):
         os.chdir(name)
