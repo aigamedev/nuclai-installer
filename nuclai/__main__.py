@@ -188,7 +188,7 @@ class Application(object):
             try:
                 status, error = '✓', None
                 self.brief, detail, *_ = recipe(*args)
-                print(' ● {} {: <40} …'.format(step, brief), end='', flush=True)
+                print(' ● {} {: <40} …'.format(step, self.brief), end='', flush=True)
                 self.execute()
             except RuntimeError as e:
                 detail, status = None, ansi.RED_B + '✗' + ansi.ENDC
