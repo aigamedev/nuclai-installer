@@ -15,7 +15,7 @@ import urllib.parse
 import uuid
 import distutils.util
 
-__version__ = '0.5'
+__version__ = '0.6'
 
 
 class ansi:
@@ -53,9 +53,9 @@ class Application(object):
                 raise RuntimeError('Command {} returned status {}.'.format(cmdline[0], ret))
         self.calls = []
     
-    def recipe_github(self, repo, rev, target="."):
+    def recipe_github(self, repo, rev, target=None):
         folder = re.split('[/.]', repo)[1]
-        target = os.path.join(target, folder)
+        target = os.path.join(target or self.params.package, folder)
         if not os.path.exists(target):
             self.call('git', 'clone', 'https://github.com/'+repo, target)
         else:
@@ -64,7 +64,7 @@ class Application(object):
         return folder, '', target
 
     def recipe_ghpy(self, repo, rev):
-        short, desc, target = self.recipe_github(repo, rev, 'github')
+        short, desc, target = self.recipe_github(repo, rev, 'common')
         self.call('python', 'setup.py', 'develop', cwd=target)
         return short, desc
 
@@ -75,8 +75,9 @@ class Application(object):
             archiveFormat = "tar" 
 
         if urllib.parse.urlparse(archive).netloc: # if archive is hosted somehere on remote machine, dowload it first
-            archive = archive + "/" + archive.split("/")[-1] if archive.split("/")[-1] else archive + archive.split("/")[-2] # if absolute
-            archive = filename = '{}-{}.{}'.format(archive, distutils.util.get_platform().replace('.', '_').replace('-', '_'), archiveFormat)
+            segments = archive.split("/")
+            archive = archive + "/" + segments[-1] if segments[-1] else archive + segments[-2] # if absolute
+            archive = '{}-{}.{}'.format(archive, distutils.util.get_platform().replace('.', '_').replace('-', '_'), archiveFormat)
             tmpArchive = str(uuid.uuid1()) + "." + archiveFormat
             try:
                 urllib.request.urlretrieve(archive, tmpArchive)
@@ -88,8 +89,10 @@ class Application(object):
            archive = archive + archiveFormat
 
         try:
+            target = os.path.join(self.params.package, target)
             if not os.path.exists(target):
-                if 'linux' in sys.platform or 'darwin' in sys.platform: # .tar here becasue zip doesn't store permissions.
+                # Use .tar here becasue zip doesn't store permissions.
+                if 'linux' in sys.platform or 'darwin' in sys.platform:
                     archiveFile = tarfile.TarFile(archive)
                     if 'darwin' in sys.platform:
                         _, base, *files = archiveFile.getmembers() # one extra file for mac
@@ -97,13 +100,13 @@ class Application(object):
                         base, *files = archiveFile.getmembers()
                     base = base.name 
                     validate = lambda f: f.name.startswith(base)
-                else:
+                else: # 'win32'
                     archiveFile = zipfile.ZipFile(archive)
                     base, *files = archiveFile.namelist()
                     validate = lambda f: f.startswith(base)
                 if all([validate(f) for f in files]):
-                    archiveFile.extractall(path=".")
-                    shutil.move(base, target)
+                    archiveFile.extractall(path=self.params.package)
+                    shutil.move(os.path.join(self.params.package, base), target)
                 else:
                     assert False, "Found no root folder as expected."
                 archiveFile.close()
