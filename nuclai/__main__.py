@@ -277,6 +277,24 @@ class Application(object):
 
 
 def main(args):
+
+    guide_url = "http://courses.nucl.ai/topic/pmgai-linux/"
+    if 'darwin' in sys.platform: guide_url = "http://courses.nucl.ai/topic/pmgai-mac-osx/"
+    if 'win32' in sys.platform: guide_url = "http://courses.nucl.ai/topic/pmgai-windows/"
+
+    # Checking if running in virtual env
+    if not hasattr(sys, 'real_prefix') and not hasattr(sys, 'base_prefix'):
+        display('WARNING: You should run nuclai from within the virtual enviroment.\nCheck the installation guide %s.' % (guide_url,), color=ansi.YELLOW_B)
+        return 1
+
+    # Checkin prerequisites
+    try: 
+        import numpy
+        import scipy
+    except ImportError:
+        display('ERROR: numpy and scipy packages are required.\nCheck the installation guide %s, and make sure you are running the right python instance.' % (guide_url,), color=ansi.RED_B)
+        return 1
+
     # Window terminals need some customization to work out-of-the-box with unicode.  
     if 'win32' in sys.platform:
         # Must be a UTF-8 compatible codepage in the terminal or output doesn't work.
